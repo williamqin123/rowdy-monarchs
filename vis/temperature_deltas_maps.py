@@ -129,8 +129,10 @@ legend.texts[-1].set_text(
     + "+"  # hides the maximum value
 )
 
+"""
 plt.title(
     f"σ 2015–2019 (Quarterly) = {df_mean_temp_then['arithmeticMeanValue'].std()}\nσ 2020–2024 (Quarterly) = {df_mean_temp_now['arithmeticMeanValue'].std()}\nCohen’s d = {df_mean_temp_diff['arithmeticMeanValue'].mean() / df_mean_temp_then['arithmeticMeanValue'].std()}"
 )
+"""
 
 plt.savefig(f"vis/exports/climate_deltas_cohens_d.png")
