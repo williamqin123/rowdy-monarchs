@@ -92,7 +92,8 @@ plt.stackplot(
     *[
         np.array(
             [
-                (tmp := agg[agg["month"] == m].sort_values("year"))[tmp["year"] == y][
+                100
+                * (tmp := agg[agg["month"] == m].sort_values("year"))[tmp["year"] == y][
                     "qty"
                 ].sum()
                 / agg[agg["year"] == y]["qty"].sum()
