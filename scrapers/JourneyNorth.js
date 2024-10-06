@@ -15,7 +15,7 @@ const END_SEASON = 1;
 
 const US_STATES_CODES = ["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"];
 
-const MONARCH_TYPE_NAME = 'other';
+const MONARCH_TYPE_NAME = 'egg';
 const SQLITE_PATH = `journeynorth_${MONARCH_TYPE_NAME}.db`;
 
 function seasonIntToStr(seasonInt) {
@@ -34,7 +34,7 @@ async function query(year, seasonInt) {
     const $trs = $('#querylist tbody tr');
     // console.log($trs);
 
-    const stmt = db.prepare("INSERT INTO sightings VALUES (?,?,?,?,?,?,?)");
+    const stmt = db.prepare("INSERT INTO sightings VALUES (?,?,?,?,?,?,?,?)");
     for (const $tr of $trs) {
         const $tds = $tr.children;
         const date = $($tds[1]).find('a').text().trim();
@@ -48,9 +48,11 @@ async function query(year, seasonInt) {
         const lng = parseFloat($($tds[5]).text().trim());
         const qty = parseInt($($tds[6]).text().trim());
 
-        let county;
+        let county, countyFIPS;
         try {
-            county = (await locToCounty(lat, lng)).county_name;
+            const _c = await locToCounty(lat, lng);
+            county = _c.county_name;
+            countyFIPS = parseInt(_c.county_fips,10);
         } catch {
             // console.log(town);
         }
@@ -58,7 +60,7 @@ async function query(year, seasonInt) {
             continue;
         }
 
-        stmt.run(date,town,state,lat,lng,qty,county);
+        stmt.run(date,town,state,lat,lng,qty,county,countyFIPS);
         // console.log(`inserted row`);
     }
     stmt.finalize();
@@ -72,9 +74,9 @@ async function query(year, seasonInt) {
 // const API_KEY = '38G3YQI6QMWSMQOPFX96PLDCFD9FA8XBK60Z4DR6DCAZT8KOUAUJ3DIC0J9EAPE2F8SZ8R6SN1GTDRLJ';
 // const client = new scrapingbee.ScrapingBeeClient(API_KEY);
 
-const db = new sqlite.Database('./JourneyNorth/' + SQLITE_PATH);
+const db = new sqlite.Database('scrapers/JourneyNorth/' + SQLITE_PATH);
 db.serialize(() => {
-    db.run("CREATE TABLE sightings (date TEXT, town TEXT, state TEXT, lat REAL, lng REAL, qty INT, county TEXT)");
+    db.run("CREATE TABLE sightings (date TEXT, town TEXT, state TEXT, lat REAL, lng REAL, qty INT, county TEXT, countyFIPS INT)");
 });
 console.log('created table');
 await query(START_YEAR, START_SEASON);
