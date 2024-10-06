@@ -118,6 +118,8 @@ for y in range(1996, 2025):
         + "+"  # hides the maximum value
     )
 
+    plt.title(str(y))
+
     plt.savefig(f"vis/exports/counties_annual_spring_frames/{y}.png")
 
     plt.cla()
@@ -170,5 +172,7 @@ for y in range(1996, 2025):
         legend.texts[-1].get_text()[: legend.texts[-1].get_text().index(" -")]
         + "+"  # hides the maximum value
     )
+
+    plt.title(str(y))
 
     plt.savefig(f"vis/exports/counties_annual_autumn_frames/{y}.png")

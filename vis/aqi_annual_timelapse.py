@@ -24,13 +24,15 @@ sns.set_style(
 #
 
 # Specify the path to your CSV file
-file_path = "your_file.csv"  # Replace with your actual file path
+file_path = (
+    "scrapers/AirQualityEPA/cleaned_aqi_data.csv"  # Replace with your actual file path
+)
 
 # Read the CSV file into a DataFrame with additional options
 df = pd.read_csv(
     file_path,
     sep=",",
-    header=1,
+    header=0,
     index_col=None,
     usecols=[
         "State",
@@ -54,6 +56,18 @@ df = pd.read_csv(
     ],
 )
 
+import addfips
+
+af = addfips.AddFIPS()
+col = []
+for index, row in df.iterrows():
+    af.add_county_fips(row, "County", "State")
+    # print(row)
+    col.append(int(row["fips"]) if not (row["fips"] is None) else None)
+df["fips"] = col
+df = df[~(df["fips"].isnull())]
+df["fips"] = df["fips"].astype(int)
+
 # Display the DataFrame
 print(df)
 
@@ -71,28 +85,18 @@ geoData = geoData[~geoData.STATE.isin(statesToRemove)]
 extent = geoData.total_bounds
 print(geoData)
 
-fullData = (
-    df_no_outliers.groupby(["month", "year", "countyFIPS"])["qty"].sum().reset_index()
-)
-# print(fullData)
-
 # for color mapping with 10 different colors
 import mapclassify as mc
 
-scheme = mc.Quantiles(fullData.groupby(["year", "countyFIPS"])["qty"].sum(), k=10)
+gdf = geoData.merge(
+    df,
+    left_on=["id"],  # identifier from geodataframe
+    right_on=["fips"],  # identifier from dataframe
+)
+
+scheme = mc.Quantiles(df["Median AQI"], k=10)
 
 for y in range(1996, 2025):
-    df_this_year_spring = geoData.merge(
-        (
-            fullData[(fullData["year"] == y) & (fullData["month"] <= 7)]
-            .groupby(["countyFIPS"])["qty"]
-            .sum()
-            .reset_index()
-        ),
-        left_on=["id"],  # identifier from geodataframe
-        right_on=["countyFIPS"],  # identifier from dataframe
-    )
-
     # Basic plot with just county outlines
     ax = gplt.polyplot(
         geoData,
@@ -103,12 +107,10 @@ for y in range(1996, 2025):
         extent=extent,
     )
 
-    if len(df_this_year_spring) == 0:
-        continue
     gplt.choropleth(
-        df_this_year_spring,
+        gdf[gdf["Year"] == y],
         projection=gcrs.AlbersEqualArea(),
-        hue="qty",
+        hue="Median AQI",
         scheme=scheme,
         cmap="inferno_r",
         linewidth=0.1,
@@ -131,21 +133,30 @@ for y in range(1996, 2025):
         + "+"  # hides the maximum value
     )
 
-    plt.savefig(f"vis/exports/counties_annual_spring_frames/{y}.png")
+    plt.title(str(y))
 
-    plt.cla()
+    plt.savefig(f"vis/exports/median_aqi_annual_frames/{y}.png")
 
-    df_this_year_fall = geoData.merge(
-        (
-            fullData[(fullData["year"] == y) & (fullData["month"] >= 8)]
-            .groupby(["countyFIPS"])["qty"]
-            .sum()
-            .reset_index()
-        ),
-        left_on=["id"],  # identifier from geodataframe
-        right_on=["countyFIPS"],  # identifier from dataframe
-    )
+#
 
+df["Unhealthiness"] = (
+    100
+    * (df["Unhealthy Days"] + df["Very Unhealthy Days"] + df["Hazardous Days"])
+    / df["Days with AQI"]
+)
+
+gdf = geoData.merge(
+    df,
+    left_on=["id"],  # identifier from geodataframe
+    right_on=["fips"],  # identifier from dataframe
+)
+
+scheme = mc.Quantiles(
+    df["Unhealthiness"],
+    k=10,
+)
+
+for y in range(1996, 2025):
     # Basic plot with just county outlines
     ax = gplt.polyplot(
         geoData,
@@ -156,12 +167,10 @@ for y in range(1996, 2025):
         extent=extent,
     )
 
-    if len(df_this_year_fall) == 0:
-        continue
     gplt.choropleth(
-        df_this_year_fall,
+        gdf[gdf["Year"] == y],
         projection=gcrs.AlbersEqualArea(),
-        hue="qty",
+        hue="Unhealthiness",
         scheme=scheme,
         cmap="inferno_r",
         linewidth=0.1,
@@ -184,4 +193,8 @@ for y in range(1996, 2025):
         + "+"  # hides the maximum value
     )
 
-    plt.savefig(f"vis/exports/counties_annual_autumn_frames/{y}.png")
+    plt.title(str(y))
+
+    plt.savefig(
+        f"vis/exports/aqi_unhealthy_percent_total_aqi_days_annual_frames/{y}.png"
+    )
