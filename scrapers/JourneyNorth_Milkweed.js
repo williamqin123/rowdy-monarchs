@@ -15,7 +15,7 @@ const END_SEASON = 1;
 
 const US_STATES_CODES = ["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"];
 
-const MONARCH_TYPE_NAME = 'egg';
+const MONARCH_TYPE_NAME = 'milkweed';
 const SQLITE_PATH = `journeynorth_${MONARCH_TYPE_NAME}.db`;
 
 function seasonIntToStr(seasonInt) {
@@ -24,7 +24,7 @@ function seasonIntToStr(seasonInt) {
 
 async function query(year, seasonInt) {
     const seasonStr = seasonIntToStr(seasonInt);
-    const url = `https://journeynorth.org/sightings/querylist.html?map=monarch-${MONARCH_TYPE_NAME}-${seasonStr}&year=${year}&season=${seasonStr}`;
+    const url = `https://journeynorth.org/sightings/querylist.html?map=${MONARCH_TYPE_NAME}-${seasonStr}&year=${year}&season=${seasonStr}`;
 
     const responseHTML = (await axios.get(url)).data;
     // console.log(responseHTML);
@@ -46,13 +46,14 @@ async function query(year, seasonInt) {
 
         const lat = parseFloat($($tds[4]).text().trim());
         const lng = parseFloat($($tds[5]).text().trim());
-        const qty = parseInt($($tds[6]).text().trim());
+        const qtyRawStr = $($tds[6]).text().trim();
+        const qty = qtyRawStr.length ? parseInt(qtyRawStr) : 1;
 
         let county, countyFIPS;
         try {
             const _c = await locToCounty(lat, lng);
             county = _c.county_name;
-            countyFIPS = parseInt(_c.county_fips, 10);
+            countyFIPS = parseInt(_c.county_fips,10);
         } catch {
             // console.log(town);
         }
