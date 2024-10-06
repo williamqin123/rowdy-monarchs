@@ -21,6 +21,9 @@ sns.set_style(
     }
 )
 
+EARLY_PERIOD = (2015, 2019)
+LATE_PERIOD = (2020, 2025)
+
 # Path to your SQLite database file
 database_path = "scrapers/JourneyNorth/journeynorth_adult.db"
 
