@@ -1,0 +1,6 @@
+Correlation Matrix:
+                 Avg_Temp   Max AQI  Median AQI  Total_Sightings
+Avg_Temp         1.000000  0.043123    0.316313         0.036413
+Max AQI          0.043123  1.000000    0.264990         0.006078
+Median AQI       0.316313  0.264990    1.000000         0.052319
+Total_Sightings  0.036413  0.006078    0.052319         1.000000
