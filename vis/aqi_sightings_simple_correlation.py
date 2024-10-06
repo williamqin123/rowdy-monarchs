@@ -29,7 +29,7 @@ file_path = (
 )
 
 # Read the CSV file into a DataFrame with additional options
-df = pd.read_csv(
+df_aqi = pd.read_csv(
     file_path,
     sep=",",
     header=0,
@@ -60,16 +60,38 @@ import addfips
 
 af = addfips.AddFIPS()
 col = []
-for index, row in df.iterrows():
+for index, row in df_aqi.iterrows():
     af.add_county_fips(row, "County", "State")
     # print(row)
     col.append(int(row["fips"]) if not (row["fips"] is None) else None)
-df["fips"] = col
-df = df[~(df["fips"].isnull())]
-df["fips"] = df["fips"].astype(int)
+df_aqi["fips"] = col
+df_aqi = df_aqi[~(df_aqi["fips"].isnull())]
+df_aqi["fips"] = df_aqi["fips"].astype(int)
 
 # Display the DataFrame
-print(df)
+print(df_aqi)
+
+#
+
+# Path to your SQLite database file
+database_path = "scrapers/JourneyNorth/journeynorth_adult.db"
+# Connect to the SQLite database
+conn = sql.connect(database_path)
+# Define your SQL query
+query = "SELECT * FROM sightings"
+# Read the data into a DataFrame
+df_sights_adults = pd.read_sql_query(query, conn)
+# Close the database connection
+conn.close()
+# Display the DataFrame
+print(df_sights_adults)
+df_sights_adults["date"] = pd.to_datetime(df_sights_adults["date"], format="%m/%d/%y")
+q = df_sights_adults["qty"].quantile(
+    0.999
+)  # top 0.1% of entered quatities = possible trolls
+df_no_outliers = df_sights_adults[
+    df_sights_adults["qty"] < q
+]  # excludes top 0.1% of entered quantities]
 
 #
 
@@ -88,62 +110,18 @@ print(geoData)
 # for color mapping with 10 different colors
 import mapclassify as mc
 
-gdf = geoData.merge(
-    df,
-    left_on=["id"],  # identifier from geodataframe
-    right_on=["fips"],  # identifier from dataframe
-)
-
-scheme = mc.Quantiles(df["Median AQI"], k=10)
-
-for y in range(1996, 2025):
-    # Basic plot with just county outlines
-    ax = gplt.polyplot(
-        geoData,
-        linewidth=0.1,
-        facecolor="lightgray",
-        projection=gcrs.AlbersEqualArea(),
-        figsize=(12, 8),
-        extent=extent,
-    )
-
-    gplt.choropleth(
-        gdf[gdf["Year"] == y],
-        projection=gcrs.AlbersEqualArea(),
-        hue="Median AQI",
-        scheme=scheme,
-        cmap="inferno_r",
-        linewidth=0.1,
-        edgecolor="white",
-        legend=True,
-        ax=ax,
-        extent=extent,
-    )
-    ax.set_axis_off()
-    legend = ax.get_legend()
-
-    legend.texts[0].set_text(
-        "≤"
-        + legend.texts[0].get_text()[
-            legend.texts[-1].get_text().index("-") + 1 :
-        ]  # hides the 0 value
-    )
-    legend.texts[-1].set_text(
-        legend.texts[-1].get_text()[: legend.texts[-1].get_text().index(" -")]
-        + "+"  # hides the maximum value
-    )
-
-    plt.title(str(y))
-
-    plt.savefig(f"vis/exports/median_aqi_annual_frames/{y}.png")
-
 #
 
-df["Unhealthiness"] = (
-    100
-    * (df["Unhealthy Days"] + df["Very Unhealthy Days"] + df["Hazardous Days"])
-    / df["Days with AQI"]
-)
+df = df_aqi.merge(df_sights_adults, left_on=["fips"], right_on=["countyFIPS"])
+
+# cross-correlation
+corrcoefs = []
+for index, row in df.iterrows():
+    np.correlate(
+        df.groupby("fips")["Median AQI"].to_numpy(),
+        df.groupby("fips")["qty"].to_numpy(),
+    )
+df["corrcoeff"] = corrcoefs
 
 gdf = geoData.merge(
     df,
@@ -152,49 +130,46 @@ gdf = geoData.merge(
 )
 
 scheme = mc.Quantiles(
-    df["Unhealthiness"],
-    k=10,
+    df["corrcoeff"],
+    k=11,
 )
 
-for y in range(1996, 2025):
-    # Basic plot with just county outlines
-    ax = gplt.polyplot(
-        geoData,
-        linewidth=0.1,
-        facecolor="lightgray",
-        projection=gcrs.AlbersEqualArea(),
-        figsize=(12, 8),
-        extent=extent,
-    )
+#
 
-    gplt.choropleth(
-        gdf[gdf["Year"] == y],
-        projection=gcrs.AlbersEqualArea(),
-        hue="Unhealthiness",
-        scheme=scheme,
-        cmap="inferno_r",
-        linewidth=0.1,
-        edgecolor="white",
-        legend=True,
-        ax=ax,
-        extent=extent,
-    )
-    ax.set_axis_off()
-    legend = ax.get_legend()
+# Basic plot with just county outlines
+ax = gplt.polyplot(
+    geoData,
+    linewidth=0.1,
+    facecolor="lightgray",
+    projection=gcrs.AlbersEqualArea(),
+    figsize=(12, 8),
+    extent=extent,
+)
 
-    legend.texts[0].set_text(
-        "≤"
-        + legend.texts[0].get_text()[
-            legend.texts[-1].get_text().index("-") + 1 :
-        ]  # hides the 0 value
-    )
-    legend.texts[-1].set_text(
-        legend.texts[-1].get_text()[: legend.texts[-1].get_text().index(" -")]
-        + "+"  # hides the maximum value
-    )
+gplt.choropleth(
+    gdf,
+    projection=gcrs.AlbersEqualArea(),
+    hue="corrcoeff",
+    scheme=scheme,
+    cmap="bwr",
+    linewidth=0.1,
+    edgecolor="white",
+    legend=True,
+    ax=ax,
+    extent=extent,
+)
+ax.set_axis_off()
+legend = ax.get_legend()
 
-    plt.title(str(y))
+legend.texts[0].set_text(
+    "≤"
+    + legend.texts[0].get_text()[
+        legend.texts[-1].get_text().index("-") + 1 :
+    ]  # hides the 0 value
+)
+legend.texts[-1].set_text(
+    legend.texts[-1].get_text()[: legend.texts[-1].get_text().index(" -")]
+    + "+"  # hides the maximum value
+)
 
-    plt.savefig(
-        f"vis/exports/aqi_unhealthy_percent_total_aqi_days_annual_frames/{y}.png"
-    )
+plt.savefig(f"vis/exports/basic_pearsons_R.png")
