@@ -1,0 +1,16 @@
+{
+    "name": "journey-north",
+    "type": "module",
+    "scripts": {
+        "scrape": "node JourneyNorth.js"
+    },
+    "dependencies": {
+        "@fuzzysaj/location-to-usa-county": "^1.0.6",
+        "axios": "^1.7.7",
+        "cheerio": "^1.0.0",
+        "node-fetch": "^3.3.2",
+        "scrapingbee": "^1.7.5",
+        "soup": "^0.2.3",
+        "sqlite3": "^5.1.7"
+    }
+}
